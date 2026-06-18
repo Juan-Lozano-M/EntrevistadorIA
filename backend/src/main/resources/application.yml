@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: interviewai
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/interviewai}
+    username: ${DB_USER:interviewai}
+    password: ${DB_PASSWORD:interviewai}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-change-me-this-must-be-at-least-32-bytes-long}
+    expiration-ms: 86400000
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
