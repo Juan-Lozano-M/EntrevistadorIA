@@ -6,18 +6,20 @@
 
 **Architecture:** Spring Boot layered app (controller → service → repository) over PostgreSQL with Flyway migrations. Two domain seams — `QuestionProvider` and `AnswerEvaluator` — isolate interview-question selection and answer scoring so a real LLM can replace the MVP heuristics later without touching orchestration. Stateless JWT security.
 
-**Tech Stack:** Java 21, Spring Boot 3.3.x, Spring Security, Spring Data JPA, PostgreSQL, Flyway, springdoc-openapi (Swagger), jjwt, Maven, JUnit 5 + Spring Boot Test + Testcontainers.
+**Tech Stack:** Java 21, Spring Boot 3.5.15, Spring Security, Spring Data JPA, PostgreSQL, Flyway, springdoc-openapi (Swagger), jjwt, Maven (via bundled `mvnw` wrapper), JUnit 5 + Spring Boot Test + Zonky embedded-postgres.
+
+> **ENVIRONMENT NOTE (read first):** The project is ALREADY scaffolded via Spring Initializr at `backend/`. Do NOT create `pom.xml`, the Maven wrapper, or the main application class — they exist. The main class is `com.interviewai.InterviewaiBackendApplication`. The `pom.xml` already includes web, data-jpa, security, validation, actuator, flyway-core, flyway-database-postgresql, postgresql, springdoc 2.8.9, jjwt 0.12.6, spring-boot-starter-test, spring-security-test, and `io.zonky.test:embedded-postgres` 2.0.7 (test scope). Build/test with `./mvnw` (Windows: `.\mvnw.cmd`). Docker is NOT available — tests use embedded-postgres (verified working, boots real PostgreSQL 14).
 
 ## Global Constraints
 
-- Java 21 (`<java.version>21</java.version>`).
+- Java 21 (`<java.version>21</java.version>`). Build via `./mvnw` / `.\mvnw.cmd` (no system Maven).
 - All REST endpoints are under `/api`. Swagger UI served at `/swagger-ui.html`.
 - Passwords hashed with BCrypt. Auth is stateless JWT (no server sessions).
 - Schema and seed data managed ONLY through Flyway migrations (no `ddl-auto=update`; use `validate`).
 - The 8 evaluation dimensions, fixed everywhere: `COMMUNICATION`, `CLARITY`, `CONFIDENCE`, `CRITICAL_THINKING`, `PROBLEM_SOLVING`, `DOMAIN_KNOWLEDGE`, `LEADERSHIP`, `TEAMWORK`. Dimension scores are integers 0–100.
 - Levels: `INTERN`, `JUNIOR`, `SEMI_SENIOR`, `SENIOR`, `LEAD`, `MANAGER`. Interview types: `TECHNICAL`, `HR`, `SITUATIONAL`, `COMPETENCY`, `LEADERSHIP`, `MIXED`.
 - A user may only access interview sessions they own (enforced in service layer; return 404 for others' sessions).
-- Tests use Testcontainers PostgreSQL, not H2 (jsonb columns require real Postgres).
+- Integration tests extend the shared `com.interviewai.support.PostgresIT` base (Task 1), which boots a Zonky embedded PostgreSQL and wires `spring.datasource.*` via `@DynamicPropertySource`. Do NOT use Testcontainers or H2 (jsonb requires real Postgres).
 
 ---
 
@@ -79,54 +81,74 @@ Each file has one responsibility. The two interfaces (`QuestionProvider`, `Answe
 
 ---
 
-## Task 1: Project scaffold + health check
+## Task 1: Test base (embedded-postgres) + config + health check
+
+The app is already scaffolded (Initializr). This task adds the shared embedded-postgres
+test base, the runtime DB/JWT config, a placeholder migration, and a health-check IT.
 
 **Files:**
-- Create: `backend/pom.xml`
-- Create: `backend/src/main/java/com/interviewai/InterviewAiApplication.java`
-- Create: `backend/src/main/resources/application.yml`
+- Create: `backend/src/test/java/com/interviewai/support/PostgresIT.java`
+- Create: `backend/src/main/resources/application.yml` (and delete the generated `application.properties`)
+- Create: `backend/src/main/resources/db/migration/V1__schema.sql` (placeholder; replaced in Task 2)
 - Create: `backend/src/test/java/com/interviewai/HealthCheckIT.java`
-- Create: `backend/src/test/resources/application-test.yml`
 
 **Interfaces:**
-- Produces: a runnable Spring Boot app on port 8080; Testcontainers base for later ITs.
+- Produces: `com.interviewai.support.PostgresIT` — abstract base that boots a Zonky embedded
+  PostgreSQL once per JVM (static) and registers `spring.datasource.url/username/password` via
+  `@DynamicPropertySource`. All later ITs extend it. App config exposes `app.jwt.secret` and
+  `app.jwt.expiration-ms`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Create the shared embedded-postgres test base**
+
+```java
+// backend/src/test/java/com/interviewai/support/PostgresIT.java
+package com.interviewai.support;
+
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+import java.io.IOException;
+
+/** Boots a real PostgreSQL (Zonky embedded, no Docker) shared across all ITs. */
+public abstract class PostgresIT {
+    static final EmbeddedPostgres POSTGRES;
+    static {
+        try {
+            POSTGRES = EmbeddedPostgres.start();
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    @DynamicPropertySource
+    static void datasourceProps(DynamicPropertyRegistry r) {
+        r.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
+        r.add("spring.datasource.username", () -> "postgres");
+        r.add("spring.datasource.password", () -> "postgres");
+    }
+}
+```
+
+- [ ] **Step 2: Write the failing health-check IT**
 
 ```java
 // backend/src/test/java/com/interviewai/HealthCheckIT.java
 package com.interviewai;
 
+import com.interviewai.support.PostgresIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers
-class HealthCheckIT {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void props(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", postgres::getJdbcUrl);
-        r.add("spring.datasource.username", postgres::getUsername);
-        r.add("spring.datasource.password", postgres::getPassword);
-    }
+class HealthCheckIT extends PostgresIT {
 
     @Autowired MockMvc mockMvc;
 
@@ -137,55 +159,15 @@ class HealthCheckIT {
 }
 ```
 
-- [ ] **Step 2: Create `pom.xml`**
+- [ ] **Step 3: Run test to verify it fails**
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.3.4</version>
-    <relativePath/>
-  </parent>
-  <groupId>com.interviewai</groupId>
-  <artifactId>interviewai-backend</artifactId>
-  <version>0.1.0</version>
-  <properties>
-    <java.version>21</java.version>
-    <jjwt.version>0.12.6</jjwt.version>
-    <springdoc.version>2.6.0</springdoc.version>
-  </properties>
-  <dependencies>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
-    <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
-    <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId></dependency>
-    <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>
-    <dependency><groupId>org.springdoc</groupId><artifactId>springdoc-openapi-starter-webmvc-ui</artifactId><version>${springdoc.version}</version></dependency>
-    <dependency><groupId>io.jsonwebtoken</groupId><artifactId>jjwt-api</artifactId><version>${jjwt.version}</version></dependency>
-    <dependency><groupId>io.jsonwebtoken</groupId><artifactId>jjwt-impl</artifactId><version>${jjwt.version}</version><scope>runtime</scope></dependency>
-    <dependency><groupId>io.jsonwebtoken</groupId><artifactId>jjwt-jackson</artifactId><version>${jjwt.version}</version><scope>runtime</scope></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
-    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
-    <dependency><groupId>org.testcontainers</groupId><artifactId>postgresql</artifactId><scope>test</scope></dependency>
-    <dependency><groupId>org.testcontainers</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
-  </dependencies>
-  <build>
-    <plugins>
-      <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
-    </plugins>
-  </build>
-</project>
-```
+Run: `cd backend && .\mvnw.cmd -q test -Dtest=HealthCheckIT`
+Expected: FAIL — Flyway/JPA cannot validate against an empty schema (no migration yet),
+or `app.jwt.*` config missing. This drives Steps 4–5.
 
-- [ ] **Step 3: Create application config**
+- [ ] **Step 4: Create application config (replace the generated `application.properties`)**
+
+Delete `backend/src/main/resources/application.properties`, then create:
 
 ```yaml
 # backend/src/main/resources/application.yml
@@ -211,48 +193,25 @@ springdoc:
     path: /swagger-ui.html
 ```
 
-```yaml
-# backend/src/test/resources/application-test.yml
-spring:
-  jpa:
-    hibernate:
-      ddl-auto: validate
-```
-
-```java
-// backend/src/main/java/com/interviewai/InterviewAiApplication.java
-package com.interviewai;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class InterviewAiApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(InterviewAiApplication.class, args);
-    }
-}
-```
-
-- [ ] **Step 4: Add a placeholder migration so Flyway validates**
-
-Create `backend/src/main/resources/db/migration/V1__schema.sql` with a single comment line `-- replaced in Task 2` for now (Task 2 fills it). Without at least one migration, `ddl-auto=validate` + empty schema fails. Use:
+- [ ] **Step 5: Add a placeholder migration so Flyway/validate succeeds**
 
 ```sql
+-- backend/src/main/resources/db/migration/V1__schema.sql
 -- placeholder; real schema added in Task 2
 CREATE TABLE IF NOT EXISTS _bootstrap (id INT PRIMARY KEY);
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 6: Run test to verify it passes**
 
-Run: `cd backend && ./mvnw -q test -Dtest=HealthCheckIT`
-Expected: PASS (Testcontainers boots Postgres, Flyway runs, actuator health 200).
+Run: `cd backend && .\mvnw.cmd -q test -Dtest=HealthCheckIT`
+Expected: PASS (embedded Postgres boots, Flyway runs V1, actuator health 200).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add backend/pom.xml backend/src
-git commit -m "feat(backend): scaffold Spring Boot app with health check IT"
+git add backend/src
+git rm --cached backend/src/main/resources/application.properties 2>/dev/null || true
+git commit -m "feat(backend): embedded-postgres test base, app config, health check IT"
 ```
 
 ---
@@ -273,33 +232,16 @@ git commit -m "feat(backend): scaffold Spring Boot app with health check IT"
 // backend/src/test/java/com/interviewai/migration/MigrationIT.java
 package com.interviewai.migration;
 
+import com.interviewai.support.PostgresIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@ActiveProfiles("test")
-@Testcontainers
-class MigrationIT {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void props(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", postgres::getJdbcUrl);
-        r.add("spring.datasource.username", postgres::getUsername);
-        r.add("spring.datasource.password", postgres::getPassword);
-    }
+class MigrationIT extends PostgresIT {
 
     @Autowired JdbcTemplate jdbc;
 
@@ -622,40 +564,13 @@ class AuthIT extends PostgresIT {
 }
 ```
 
-- [ ] **Step 2: Create the shared Testcontainers base**
+- [ ] **Step 2: Run test to verify it fails**
 
-```java
-// backend/src/test/java/com/interviewai/support/PostgresIT.java
-package com.interviewai.support;
-
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
-@ActiveProfiles("test")
-@Testcontainers
-public abstract class PostgresIT {
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void props(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        r.add("spring.datasource.username", POSTGRES::getUsername);
-        r.add("spring.datasource.password", POSTGRES::getPassword);
-    }
-}
-```
-
-- [ ] **Step 3: Run test to verify it fails**
-
-Run: `cd backend && ./mvnw -q test -Dtest=AuthIT`
+`PostgresIT` already exists from Task 1 — `AuthIT` extends it. Run:
+`cd backend && .\mvnw.cmd -q test -Dtest=AuthIT`
 Expected: FAIL (404 — no /api/auth endpoints).
 
-- [ ] **Step 4: Write entity, repository, DTOs**
+- [ ] **Step 3: Write entity, repository, DTOs**
 
 ```java
 // User.java
