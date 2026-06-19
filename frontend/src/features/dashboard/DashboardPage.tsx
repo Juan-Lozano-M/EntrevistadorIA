@@ -4,6 +4,7 @@ import { scoreBand } from "@/lib/dimensions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScoreRing } from "@/components/ScoreRing";
 import { useAuthStore } from "@/stores/authStore";
 
 const bandClass: Record<string, string> = {
@@ -26,6 +27,28 @@ export function DashboardPage() {
         </div>
         {!isEmpty && <Button asChild><Link to="/new">Nueva entrevista</Link></Button>}
       </div>
+
+      {sessions && sessions.length > 0 && (() => {
+        const finished = sessions.filter((s) => s.overallScore != null);
+        const avg = finished.length
+          ? Math.round(finished.reduce((sum, s) => sum + (s.overallScore ?? 0), 0) / finished.length)
+          : 0;
+        return (
+          <Card>
+            <CardContent className="flex items-center justify-around py-6">
+              <ScoreRing value={avg} label="Promedio" />
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-3xl font-bold text-primary">{sessions.length}</span>
+                <span className="text-sm text-muted-foreground">Entrevistas</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-3xl font-bold text-primary">{finished.length}</span>
+                <span className="text-sm text-muted-foreground">Completadas</span>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {isLoading && <div className="grid gap-3 sm:grid-cols-2"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>}
 

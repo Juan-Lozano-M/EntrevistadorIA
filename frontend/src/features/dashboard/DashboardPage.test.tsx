@@ -16,7 +16,7 @@ describe("DashboardPage", () => {
     ])));
     renderWithProviders(<DashboardPage />);
     expect(await screen.findByText("Backend Dev")).toBeInTheDocument();
-    expect(screen.getByText(/82/)).toBeInTheDocument();
+    expect(screen.getAllByText(/82/).length).toBeGreaterThan(0);
   });
 
   it("shows an empty state with a CTA when there is no history", async () => {
