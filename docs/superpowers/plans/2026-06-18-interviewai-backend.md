@@ -1417,10 +1417,10 @@ public class RuleBasedEvaluator implements AnswerEvaluator {
         Map<Dimension, Integer> result = new HashMap<>();
         Map<String, Double> targets = question.getTargetDimensions();
         if (targets == null) return result;
-        for (var entry : targets.entrySet()) {
-            Dimension dim = Dimension.valueOf(entry.getKey());
-            double weighted = base * weightBoost(entry.getValue());
-            result.put(dim, clampTo100(weighted));
+        // target_dimensions chooses WHICH dimensions this question scores; the weights are
+        // reserved for future weighting and intentionally do not change the per-dimension value here.
+        for (String dimensionName : targets.keySet()) {
+            result.put(Dimension.valueOf(dimensionName), clampTo100(base));
         }
         return result;
     }
@@ -1446,12 +1446,6 @@ public class RuleBasedEvaluator implements AnswerEvaluator {
         if (ratio <= 1.2) return 1.0;     // within band
         if (ratio <= 2.0) return 0.6;
         return 0.4;                        // very slow
-    }
-
-    private double weightBoost(double weight) {
-        // Heavier target dimensions are judged a touch more strictly is undesirable;
-        // keep neutral — weight only chooses which dimensions, not their leniency.
-        return 1.0;
     }
 
     private int clampTo100(double v) {
