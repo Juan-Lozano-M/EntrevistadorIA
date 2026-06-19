@@ -28,6 +28,9 @@ public class FeedbackGenerator {
                 plan.add(planStepFor(dim));
             }
         });
+        if (strengths.isEmpty() && weaknesses.isEmpty()) {
+            strengths.add("Desempeño equilibrado en todas las dimensiones evaluadas.");
+        }
         return new FeedbackResult(strengths, weaknesses, recommendations, plan);
     }
 
