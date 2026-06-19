@@ -1,1 +1,2 @@
-export function HistoryPage() { return <div />; }
+import { DashboardPage } from "@/features/dashboard/DashboardPage";
+export function HistoryPage() { return <DashboardPage />; }
