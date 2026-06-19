@@ -6,7 +6,9 @@
 
 **Architecture:** Vite + React + TypeScript SPA. Tailwind + shadcn/ui for a sober, professional look with subtle gamification, dark/light themed via CSS variables. React Query owns server state; Zustand owns client state (auth + active interview). A single typed `lib/api.ts` is the only boundary to the backend. Tests use Vitest + React Testing Library + MSW (no running backend).
 
-**Tech Stack:** React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui (Radix), TanStack Query, Zustand, React Router v6, react-hook-form + zod, recharts, sonner, Vitest, React Testing Library, MSW.
+**Tech Stack:** React, TypeScript, Vite, **Tailwind CSS v4** (CSS-first config via `@tailwindcss/vite` plugin; `@theme inline` tokens, no `tailwind.config.js`), shadcn-style components built on **Radix** (hand-authored under `components/ui/`, classic `asChild` API), TanStack Query, Zustand, React Router (v7, v6-compatible API), react-hook-form + zod, recharts, sonner, Vitest, React Testing Library, MSW.
+
+> **TAILWIND v4 NOTE (decided during Task 1):** The plan was authored for Tailwind v3 + `tailwind.config.js`, but the project uses **Tailwind v4** (the modern default; the current `shadcn` CLI also defaults to Base UI, which we rejected to keep the Radix `asChild` API the plan relies on). Concrete differences from the task text below: theme tokens live in `src/index.css` via `@import "tailwindcss"`, `@custom-variant dark (&:is(.dark *))`, and an `@theme inline` block mapping `--color-*` to the HSL CSS variables — there is no `tailwind.config.js` or `postcss.config.js`. The shadcn `components/ui/*` files are hand-authored Radix versions (button, card, input, label, textarea, slider, skeleton, sonner). All utility classes used in later tasks (`bg-primary`, `text-muted-foreground`, `rounded-lg`, etc.) resolve identically under this v4 setup, so Tasks 2–8 are unaffected.
 
 ## Global Constraints
 
