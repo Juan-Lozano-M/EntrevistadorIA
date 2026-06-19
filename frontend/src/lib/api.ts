@@ -51,9 +51,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
 
   if (res.status === 401) {
-    useAuthStore.getState().logout();
-    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-      window.location.assign("/login");
+    if (!path.startsWith("/auth/")) {
+      useAuthStore.getState().logout();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
     }
     throw new ApiError(401, await readMessage(res, "No autenticado"));
   }

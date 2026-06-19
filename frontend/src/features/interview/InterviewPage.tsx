@@ -28,11 +28,14 @@ export function InterviewPage() {
   // Start the timer whenever a new question is shown.
   useEffect(() => {
     if (next.data?.question) markShown();
-  }, [next.data?.question?.id, markShown, next.data?.question]);
+  }, [next.data?.question?.id, markShown]);
 
   const finish = useMutation({
     mutationFn: () => finishInterview(sessionId),
-    onSuccess: () => navigate(`/results/${sessionId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["history"] });
+      navigate(`/results/${sessionId}`);
+    },
     onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error al finalizar"),
   });
 

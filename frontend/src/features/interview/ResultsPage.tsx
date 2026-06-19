@@ -24,9 +24,19 @@ function FeedbackList({ title, items }: { title: string; items: string[] }) {
 
 export function ResultsPage() {
   const { id } = useParams();
-  const { data, isLoading } = useResults(Number(id));
+  const { data, isLoading, isError } = useResults(Number(id));
 
-  if (isLoading || !data) return <Skeleton className="h-96" />;
+  if (isLoading) return <Skeleton className="h-96" />;
+  if (isError || !data) {
+    return (
+      <div className="space-y-4 py-10 text-center">
+        <p className="text-muted-foreground">
+          No se pudieron cargar los resultados. La entrevista podría no haber finalizado todavía.
+        </p>
+        <Button asChild variant="outline"><Link to="/">Volver</Link></Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

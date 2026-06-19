@@ -17,7 +17,7 @@ export function ScoreRing({ value, label }: { value: number; label: string }) {
           className={`fill-none ${bandStroke[scoreBand(value)]}`} strokeWidth="8"
           strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
       </svg>
-      <span className="-mt-14 text-2xl font-bold">{value}</span>
+      <span className="-mt-14 text-2xl font-bold">{clamped}</span>
       <span className="mt-8 text-sm text-muted-foreground">{label}</span>
     </div>
   );
