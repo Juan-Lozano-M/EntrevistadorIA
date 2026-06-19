@@ -92,4 +92,30 @@ class InterviewFlowIT extends AuthenticatedIT {
         mockMvc.perform(get("/api/interviews/" + sessionId + "/results").header("Authorization", otherToken))
             .andExpect(status().isNotFound());
     }
+
+    @Test
+    void resultsBeforeFinishIsRejected() throws Exception {
+        String auth = bearer();
+        String createBody = """
+            {"professionSlug":"software-development","roleTitle":"R","level":"JUNIOR",
+             "type":"MIXED","language":"es","durationMinutes":15}""";
+        String createResp = mockMvc.perform(post("/api/interviews")
+                .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(createBody))
+            .andReturn().getResponse().getContentAsString();
+        long sessionId = mapper.readTree(createResp).get("id").asLong();
+
+        mockMvc.perform(get("/api/interviews/" + sessionId + "/results").header("Authorization", auth))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void createWithInvalidLevelReturns400() throws Exception {
+        String auth = bearer();
+        String body = """
+            {"professionSlug":"software-development","roleTitle":"R","level":"NOPE",
+             "type":"MIXED","language":"es","durationMinutes":15}""";
+        mockMvc.perform(post("/api/interviews")
+                .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isBadRequest());
+    }
 }

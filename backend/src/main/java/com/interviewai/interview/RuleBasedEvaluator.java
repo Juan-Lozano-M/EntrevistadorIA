@@ -28,7 +28,9 @@ public class RuleBasedEvaluator implements AnswerEvaluator {
         // target_dimensions chooses WHICH dimensions this question scores; the weights are
         // reserved for future weighting and intentionally do not change the per-dimension value here.
         for (String dimensionName : targets.keySet()) {
-            result.put(Dimension.valueOf(dimensionName), clampTo100(base));
+            Dimension dim;
+            try { dim = Dimension.valueOf(dimensionName); } catch (IllegalArgumentException e) { continue; }
+            result.put(dim, clampTo100(base));
         }
         return result;
     }

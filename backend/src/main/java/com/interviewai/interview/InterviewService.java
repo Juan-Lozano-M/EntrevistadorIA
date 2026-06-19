@@ -49,8 +49,12 @@ public class InterviewService {
         s.setRoleTitle(req.roleTitle());
         s.setTargetCompany(req.targetCompany());
         s.setIndustry(req.industry());
-        s.setLevel(Level.valueOf(req.level()).name());
-        s.setType(InterviewType.valueOf(req.type()).name());
+        try {
+            s.setLevel(Level.valueOf(req.level()).name());
+            s.setType(InterviewType.valueOf(req.type()).name());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Nivel o tipo de entrevista inválido");
+        }
         s.setLanguage(req.language());
         s.setDurationMinutes(req.durationMinutes());
         s.setStatus("IN_PROGRESS");
@@ -122,6 +126,9 @@ public class InterviewService {
     @Transactional(readOnly = true)
     public ResultsDto results(Long sessionId) {
         InterviewSession s = ownedSession(sessionId);
+        if (!"FINISHED".equals(s.getStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "La entrevista no ha finalizado");
+        }
         List<InterviewAnswer> sessionAnswers = answers.findBySessionId(sessionId);
         Map<Dimension, Integer> averages = averageDimensions(sessionAnswers);
         Map<String, Integer> dimScores = new LinkedHashMap<>();
@@ -173,8 +180,11 @@ public class InterviewService {
         Map<Dimension, List<Integer>> acc = new EnumMap<>(Dimension.class);
         for (InterviewAnswer a : list) {
             if (a.getDimensionScores() == null) continue;
-            a.getDimensionScores().forEach((k, v) ->
-                acc.computeIfAbsent(Dimension.valueOf(k), x -> new ArrayList<>()).add(v));
+            a.getDimensionScores().forEach((k, v) -> {
+                Dimension dim;
+                try { dim = Dimension.valueOf(k); } catch (IllegalArgumentException e) { return; }
+                acc.computeIfAbsent(dim, x -> new ArrayList<>()).add(v);
+            });
         }
         Map<Dimension, Integer> averages = new EnumMap<>(Dimension.class);
         acc.forEach((dim, vals) ->
