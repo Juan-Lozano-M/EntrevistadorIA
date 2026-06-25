@@ -113,7 +113,7 @@ export function InterviewPage() {
       <Card>
         <CardContent className="space-y-6 py-7">
           <div className="flex items-start justify-between gap-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Entrevistador</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Entrevistador</p>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 font-mono text-xs tabular text-muted-foreground">
               <Clock className="h-3.5 w-3.5" /> {formatElapsed(elapsedMs())}
             </span>

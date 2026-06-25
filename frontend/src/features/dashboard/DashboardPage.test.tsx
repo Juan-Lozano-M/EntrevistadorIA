@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 const BASE = "http://localhost:8080/api";
 
 describe("DashboardPage", () => {
-  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "Ana", email: "a@test.com" } }));
+  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "Ana", email: "a@test.com", plan: "FREE" } }));
 
   it("renders the user's interview history", async () => {
     server.use(http.get(`${BASE}/interviews`, () => HttpResponse.json([

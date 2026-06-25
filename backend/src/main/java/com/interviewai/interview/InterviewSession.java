@@ -21,8 +21,14 @@ public class InterviewSession {
     @Column(name = "overall_score") private Integer overallScore;
     @Column(name = "started_at") private OffsetDateTime startedAt = OffsetDateTime.now();
     @Column(name = "finished_at") private OffsetDateTime finishedAt;
+    @Column(nullable = false) private String modality = "STANDARD";
+    @Column(name = "off_topic_count", nullable = false) private int offTopicCount = 0;
 
     public Long getId() { return id; }
+    public String getModality() { return modality; }
+    public void setModality(String v) { this.modality = v; }
+    public int getOffTopicCount() { return offTopicCount; }
+    public void setOffTopicCount(int v) { this.offTopicCount = v; }
     public Long getUserId() { return userId; }
     public void setUserId(Long v) { this.userId = v; }
     public Long getProfessionId() { return professionId; }

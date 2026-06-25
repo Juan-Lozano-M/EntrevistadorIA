@@ -24,7 +24,7 @@ export function ScoreRing({ value, label }: { value: number; label: string }) {
             strokeWidth="9" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
           />
         </svg>
-        <span className={`absolute font-display text-3xl font-bold tabular ${bandText[band]}`}>{clamped}</span>
+        <span className={`absolute font-mono text-3xl font-semibold tabular ${bandText[band]}`}>{clamped}</span>
       </div>
       <span className="text-sm text-muted-foreground">{label}</span>
     </div>

@@ -4,6 +4,7 @@ import com.interviewai.auth.CurrentUser;
 import com.interviewai.auth.User;
 import com.interviewai.common.*;
 import com.interviewai.interview.dto.*;
+import com.interviewai.notification.NotificationService;
 import com.interviewai.profession.*;
 import com.interviewai.question.*;
 import org.springframework.http.HttpStatus;
@@ -11,11 +12,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
 public class InterviewService {
     private static final int MAX_QUESTIONS = 8;
+    private static final int FREE_DAILY_LIMIT = 3;
 
     private final InterviewSessionRepository sessions;
     private final InterviewAnswerRepository answers;
@@ -26,21 +29,35 @@ public class InterviewService {
     private final AnswerEvaluator evaluator;
     private final FeedbackGenerator feedbackGenerator;
     private final CurrentUser currentUser;
+    private final ChatService chatService;
+    private final NotificationService notifications;
 
     public InterviewService(InterviewSessionRepository sessions, InterviewAnswerRepository answers,
                             SessionFeedbackRepository feedbacks, ProfessionRepository professions,
                             QuestionRepository questions, QuestionProvider questionProvider,
                             AnswerEvaluator evaluator, FeedbackGenerator feedbackGenerator,
-                            CurrentUser currentUser) {
+                            CurrentUser currentUser, ChatService chatService,
+                            NotificationService notifications) {
         this.sessions = sessions; this.answers = answers; this.feedbacks = feedbacks;
         this.professions = professions; this.questions = questions;
         this.questionProvider = questionProvider; this.evaluator = evaluator;
         this.feedbackGenerator = feedbackGenerator; this.currentUser = currentUser;
+        this.chatService = chatService; this.notifications = notifications;
     }
 
     @Transactional
     public SessionSummaryDto create(CreateInterviewRequest req) {
         User user = currentUser.require();
+        if (!"PREMIUM".equals(user.getPlan())) {
+            OffsetDateTime startOfDay = OffsetDateTime.now()
+                .toLocalDate().atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+            long today = sessions.countByUserIdAndStartedAtGreaterThanEqual(user.getId(), startOfDay);
+            if (today >= FREE_DAILY_LIMIT) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Has alcanzado el límite de " + FREE_DAILY_LIMIT
+                        + " entrevistas diarias del plan Free. Vuelve mañana o pásate a Premium.");
+            }
+        }
         Profession profession = professions.findBySlug(req.professionSlug())
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Profesión no encontrada"));
         InterviewSession s = new InterviewSession();
@@ -49,12 +66,18 @@ public class InterviewService {
         s.setRoleTitle(req.roleTitle());
         s.setTargetCompany(req.targetCompany());
         s.setIndustry(req.industry());
+        Modality modality;
         try {
             s.setLevel(Level.valueOf(req.level()).name());
             s.setType(InterviewType.valueOf(req.type()).name());
+            modality = req.modality() == null ? Modality.STANDARD : Modality.valueOf(req.modality());
         } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Nivel o tipo de entrevista inválido");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Nivel, tipo o modalidad inválidos");
         }
+        if ((modality == Modality.CHAT || modality == Modality.VOICE) && !"PREMIUM".equals(user.getPlan())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Esta modalidad es exclusiva del plan Premium");
+        }
+        s.setModality(modality.name());
         s.setLanguage(req.language());
         s.setDurationMinutes(req.durationMinutes());
         s.setStatus("IN_PROGRESS");
@@ -103,6 +126,12 @@ public class InterviewService {
     @Transactional
     public SessionSummaryDto finish(Long sessionId) {
         InterviewSession s = ownedSession(sessionId);
+        User user = currentUser.require();
+        if ("CHAT".equals(s.getModality()) || "VOICE".equals(s.getModality())) {
+            chatService.evaluateAndFinish(s);
+            notifications.onInterviewFinished(user);
+            return SessionSummaryDto.from(s);
+        }
         Map<Dimension, Integer> averages = averageDimensions(answers.findBySessionId(sessionId));
         int overall = averages.isEmpty() ? 0
             : (int) Math.round(averages.values().stream().mapToInt(Integer::intValue).average().orElse(0));
@@ -120,6 +149,7 @@ public class InterviewService {
         s.setStatus("FINISHED");
         s.setFinishedAt(OffsetDateTime.now());
         sessions.save(s);
+        notifications.onInterviewFinished(user);
         return SessionSummaryDto.from(s);
     }
 
@@ -140,15 +170,17 @@ public class InterviewService {
             orEmpty(fb.getStrengths()), orEmpty(fb.getWeaknesses()),
             orEmpty(fb.getRecommendations()), orEmpty(fb.getImprovementPlan()));
 
-        List<ResultsDto.AnswerReviewDto> reviews = sessionAnswers.stream().map(a -> {
-            Question q = questions.findById(a.getQuestionId()).orElse(null);
-            return new ResultsDto.AnswerReviewDto(
-                a.getQuestionId(),
-                q == null ? "" : q.getText(),
-                a.getAnswerText(),
-                q == null ? "" : q.getModelAnswer(),
-                a.getDimensionScores());
-        }).toList();
+        List<ResultsDto.AnswerReviewDto> reviews = sessionAnswers.stream()
+            .filter(a -> a.getQuestionId() != null)   // skip the synthetic answer used for chat scoring
+            .map(a -> {
+                Question q = questions.findById(a.getQuestionId()).orElse(null);
+                return new ResultsDto.AnswerReviewDto(
+                    a.getQuestionId(),
+                    q == null ? "" : q.getText(),
+                    a.getAnswerText(),
+                    q == null ? "" : q.getModelAnswer(),
+                    a.getDimensionScores());
+            }).toList();
 
         return new ResultsDto(s.getId(), s.getRoleTitle(), s.getLevel(), s.getType(),
             s.getOverallScore(), dimScores, feedbackDto, reviews);

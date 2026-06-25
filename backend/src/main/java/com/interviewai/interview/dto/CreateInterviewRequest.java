@@ -8,4 +8,5 @@ public record CreateInterviewRequest(
     @NotBlank String level,
     @NotBlank String type,
     @NotBlank String language,
-    @Min(5) @Max(120) int durationMinutes) {}
+    @Min(5) @Max(120) int durationMinutes,
+    String modality) {}

@@ -10,7 +10,7 @@ import { useAuthStore } from "@/stores/authStore";
 const BASE = "http://localhost:8080/api";
 
 describe("InterviewPage", () => {
-  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "A", email: "a@test.com" } }));
+  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "A", email: "a@test.com", plan: "FREE" } }));
 
   it("shows a question, submits an answer, then finishes and navigates to results", async () => {
     let answered = false;

@@ -15,12 +15,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
     private static final String[] PUBLIC = {
-        "/api/auth/**", "/actuator/health",
+        "/api/auth/**", "/api/billing/webhook", "/api/billing/return", "/api/billing/config", "/actuator/health",
         "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
@@ -37,6 +38,10 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Unauthenticated requests get 401 (not Spring's default 403) so the frontend
+            // logs out and redirects to /login when a token is missing or expired.
+            .exceptionHandling(e -> e.authenticationEntryPoint(
+                (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
             .authorizeHttpRequests(a -> a
                 .requestMatchers(PUBLIC).permitAll()
                 .anyRequest().authenticated())

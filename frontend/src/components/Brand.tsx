@@ -17,7 +17,7 @@ export function BrandMark({ className }: { className?: string }) {
 
 export function Brand({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span className={cn("inline-flex shrink-0 items-center gap-2 whitespace-nowrap", className)}>
       <BrandMark />
       <span className="font-display text-lg font-semibold tracking-tight">
         Interview<span className="text-primary">AI</span>

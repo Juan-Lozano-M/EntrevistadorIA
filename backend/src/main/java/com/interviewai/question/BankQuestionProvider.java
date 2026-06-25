@@ -16,6 +16,8 @@ public class BankQuestionProvider implements QuestionProvider {
     public List<Question> selectQuestions(Long professionId, Level level, InterviewType type,
                                           String language, int limit) {
         List<Question> pool = questions.findByProfessionIdAndLanguage(professionId, language);
+        // Fall back to any language for professions that don't have a bank in the requested one yet.
+        if (pool.isEmpty()) pool = questions.findByProfessionId(professionId);
         // MIXED keeps all types; a specific type filters to it (falls back to all if empty).
         List<Question> filtered = type == InterviewType.MIXED ? pool
             : pool.stream().filter(q -> q.getType().equals(type.name())).toList();

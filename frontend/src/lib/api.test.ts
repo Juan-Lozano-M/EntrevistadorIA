@@ -26,7 +26,7 @@ describe("api client", () => {
   });
 
   it("attaches the bearer token from the auth store", async () => {
-    useAuthStore.setState({ token: "abc", user: { name: "A", email: "a@test.com" } });
+    useAuthStore.setState({ token: "abc", user: { name: "A", email: "a@test.com", plan: "FREE" } });
     let seen: string | null = null;
     server.use(http.get(`${BASE}/professions`, ({ request }) => {
       seen = request.headers.get("authorization");

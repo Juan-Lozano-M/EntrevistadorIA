@@ -14,8 +14,8 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="app-backdrop min-h-screen">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/" aria-label="Ir al inicio">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <Link to="/app" aria-label="Ir al panel">
             <Brand />
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-3">

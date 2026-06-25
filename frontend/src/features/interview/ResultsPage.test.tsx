@@ -9,7 +9,7 @@ import { useAuthStore } from "@/stores/authStore";
 const BASE = "http://localhost:8080/api";
 
 describe("ResultsPage", () => {
-  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "A", email: "a@test.com" } }));
+  beforeEach(() => useAuthStore.setState({ token: "t", user: { name: "A", email: "a@test.com", plan: "FREE" } }));
 
   it("renders overall score, feedback and model-answer comparison", async () => {
     server.use(http.get(`${BASE}/interviews/7/results`, () => HttpResponse.json({

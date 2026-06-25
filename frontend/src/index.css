@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 @custom-variant dark (&:is(.dark *));
 
@@ -71,8 +71,9 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 3px);
   --radius-sm: calc(var(--radius) - 6px);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @layer base {
@@ -101,6 +102,46 @@
 
 .font-display { font-family: var(--font-display); }
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* Slim, theme-aware scrollbar (Firefox + WebKit). */
+.scrollbar-slim {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-slim::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-slim:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+
+/* MercadoPago secure-field containers: make the injected iframe fill the box so it's clickable. */
+.mp-field { display: flex; align-items: center; }
+.mp-field iframe { width: 100% !important; height: 100% !important; }
+
+/* Dim scrim behind modals / drawers — a deep, slightly tinted veil (never washes out white
+   in dark mode like foreground-based overlays do). Looks consistent across both themes. */
+.app-overlay {
+  background:
+    radial-gradient(120% 120% at 50% 0%, hsl(var(--primary) / 0.18), transparent 55%),
+    hsl(231 40% 6% / 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-overlay { animation: overlay-in 0.18s ease-out both; }
+}
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: no-preference) {
   .rise {

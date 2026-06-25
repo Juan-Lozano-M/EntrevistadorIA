@@ -1,4 +1,5 @@
 export const LEVEL_LABELS: Record<string, string> = {
+  ENTRY: "Sin experiencia",
   INTERN: "Practicante",
   JUNIOR: "Junior",
   SEMI_SENIOR: "Semi Senior",
@@ -12,6 +13,8 @@ export const TYPE_LABELS: Record<string, string> = {
   HR: "Recursos Humanos",
   SITUATIONAL: "Situacional",
   COMPETENCY: "Competencias",
+  BEHAVIORAL: "Conductual",
+  CASE_STUDY: "Caso práctico",
   LEADERSHIP: "Liderazgo",
   MIXED: "Mixta",
 };
