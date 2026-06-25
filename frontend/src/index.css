@@ -125,6 +125,12 @@
   background-color: hsl(var(--muted-foreground) / 0.45);
 }
 
+/* react-loading-skeleton: drive the shimmer from theme tokens so it adapts to dark/light. */
+.react-loading-skeleton {
+  --base-color: hsl(var(--muted));
+  --highlight-color: hsl(var(--accent));
+}
+
 /* MercadoPago secure-field containers: make the injected iframe fill the box so it's clickable. */
 .mp-field { display: flex; align-items: center; }
 .mp-field iframe { width: 100% !important; height: 100% !important; }

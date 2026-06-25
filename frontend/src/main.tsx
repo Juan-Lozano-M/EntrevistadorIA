@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { queryClient } from "@/lib/queryClient";
 import App from "./App";
+import "react-loading-skeleton/dist/skeleton.css";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
