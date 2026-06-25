@@ -2,7 +2,8 @@ spring:
   application:
     name: interviewai
   datasource:
-    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/interviewai}
+    # DB_URL gana si está; si no, se arma desde piezas (Render las inyecta vía blueprint).
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_NAME:interviewai}}
     username: ${DB_USER:interviewai}
     password: ${DB_PASSWORD:interviewai}
   jpa:

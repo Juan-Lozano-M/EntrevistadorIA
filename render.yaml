@@ -1,0 +1,58 @@
+# Render Blueprint — crea Postgres + backend de una sola vez.
+# (El frontend va en Vercel: ahí pones VITE_API_BASE_URL = https://<backend>.onrender.com/api)
+# Render → New → Blueprint → conecta este repo. Luego completa en el dashboard las
+# variables marcadas con `sync: false` (secretos: no van en el repo).
+
+databases:
+  - name: interviewai-db
+    databaseName: interviewai
+    user: interviewai
+    plan: free
+    region: oregon          # usa la MISMA región en todos los recursos
+
+services:
+  # ---------- Backend (Spring Boot, Docker) ----------
+  - type: web
+    name: interviewai-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    healthCheckPath: /actuator/health
+    envVars:
+      # Conexión a la BD: Render la inyecta automáticamente desde el Postgres de arriba.
+      - key: DB_HOST
+        fromDatabase: { name: interviewai-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: interviewai-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: interviewai-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: interviewai-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: interviewai-db, property: password }
+      # Seguridad: Render genera un secreto fuerte automáticamente.
+      - key: JWT_SECRET
+        generateValue: true
+      # URLs públicas y CORS: pon el dominio de tu frontend tras el primer deploy.
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      # MercadoPago (Colombia). Los montos no son secretos; los tokens sí.
+      - key: MP_CURRENCY
+        value: COP
+      - key: MP_AMOUNT
+        value: "40000"
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_PUBLIC_KEY
+        sync: false
+      - key: MP_WEBHOOK_URL
+        sync: false
+      # IA y email (opcionales según features activas).
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
